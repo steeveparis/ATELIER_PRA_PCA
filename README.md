@@ -231,27 +231,47 @@ Faites preuve de pédagogie et soyez clair dans vos explications et procedures d
 **Exercice 1 :**  
 Quels sont les composants dont la perte entraîne une perte de données ?  
   
-*..Répondez à cet exercice ici..*
+Pour ne pas perdre de données, il faut identifier où elles "dorment". Les points de rupture sont :
+
+Le stockage physique : Si le disque dur ou la baie de stockage lâche physiquement.
+
+La configuration du Volume (PV) : Si la politique est réglée sur Delete, supprimer le lien dans Kubernetes supprime aussi les fichiers sur le disque.
+
+L'application elle-même : Si elle n'écrit pas ses données dans un volume persistant mais dans son propre conteneur (éphémère).
 
 **Exercice 2 :**  
 Expliquez nous pourquoi nous n'avons pas perdu les données lors de la supression du PVC pra-data  
   
-*..Répondez à cet exercice ici..*
+C'est le filet de sécurité de Kubernetes. Deux raisons possibles ici :
+
+La Reclaim Policy "Retain" : Le volume est configuré pour garder les données même si on supprime l'accès (le PVC). C'est comme débrancher une clé USB sans l'effacer.
+
+Stockage indépendant : Les données sont sur un serveur externe (NFS, Cloud). Kubernetes a juste supprimé le "raccourci", pas les fichiers sources.
 
 **Exercice 3 :**  
 Quels sont les RTO et RPO de cette solution ?  
   
-*..Répondez à cet exercice ici..*
+RPO (Perte de données) : Proche de 0. Grâce à la réplication en temps réel du stockage, on ne perd quasiment aucune transaction.
+
+RTO (Temps de relance) : Environ 2 à 5 minutes. C'est le temps nécessaire pour que Kubernetes détecte le problème, reprogramme le pod sur un autre nœud et relance le service.
 
 **Exercice 4 :**  
 Pourquoi cette solution (cet atelier) ne peux pas être utilisé dans un vrai environnement de production ? Que manque-t-il ?   
   
-*..Répondez à cet exercice ici..*
+Ce lab permet d'apprendre à utiliser ces solutions, mais il manque un coter plus "professionnelle" pour qu'il soit disposer en production dans une entreprise.
   
 **Exercice 5 :**  
 Proposez une archtecture plus robuste.   
   
-*..Répondez à cet exercice ici..*
+Pour dormir tranquille, il faudrait :
+
+Le Multi-Zone : Répartir les serveurs sur au moins 2 ou 3 sites géographiques différents.
+
+L'automatisation (Failover) : Utiliser un outil qui bascule le trafic tout seul si un site tombe.
+
+Velero : Installer cet outil pour faire des sauvegardes régulières de tout le cluster Kubernetes vers un stockage distant sécurisé.
+
+Monitoring : Un tableau de bord (Grafana) pour être alerté avant que le crash n'arrive.
 
 ---------------------------------------------------
 Séquence 6 : Ateliers  
