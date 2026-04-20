@@ -283,13 +283,61 @@ Difficulté : Moyenne (~2 heures)
 * last_backup_file : nom du dernier backup présent dans /backup
 * backup_age_seconds : âge du dernier backup
 
-*..**Déposez ici une copie d'écran** de votre réussite..*
+![alt text](image.png)
 
 ---------------------------------------------------
 ### **Atelier 2 : Choisir notre point de restauration**  
 Aujourd’hui nous restaurobs “le dernier backup”. Nous souhaitons **ajouter la capacité de choisir un point de restauration**.
 
-*..Décrir ici votre procédure de restauration (votre runbook)..*  
+Runbook de restauration
+
+Objectif : restaurer la base de données à partir d’un backup choisi.
+
+1. Lister les backups disponibles
+kubectl -n pra run debug-backup --rm -it --image=alpine --overrides='
+{
+  "spec": {
+    "containers": [{
+      "name": "debug",
+      "image": "alpine",
+      "command": ["sh"],
+      "stdin": true,
+      "tty": true,
+      "volumeMounts": [{
+        "name": "backup",
+        "mountPath": "/backup"
+      }]
+    }],
+    "volumes": [{
+      "name": "backup",
+      "persistentVolumeClaim": {
+        "claimName": "pra-backup"
+      }
+    }]
+  }
+}'
+ls /backup
+2. Arrêter l’application
+kubectl -n pra scale deployment flask --replicas=0
+3. Suspendre les sauvegardes
+kubectl -n pra patch cronjob sqlite-backup -p '{"spec":{"suspend":true}}'
+4. Restaurer la base
+
+Choisir un fichier et le restaurer :
+
+cp /backup/NOM_DU_BACKUP.db /data/app.db
+
+Puis lancer le job :
+
+kubectl apply -f pra/50-job-restore.yaml
+5. Redémarrer l’application
+kubectl -n pra scale deployment flask --replicas=1
+6. Réactiver les sauvegardes
+kubectl -n pra patch cronjob sqlite-backup -p '{"spec":{"suspend":false}}'
+7. Vérification
+/count
+/consultation
+/status
   
 ---------------------------------------------------
 Evaluation
