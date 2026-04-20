@@ -1,16 +1,17 @@
 import os
 import sqlite3
-from datetime import datetime
+from datetime import datetime, timezone
 from flask import Flask, jsonify, request
 
 DB_PATH = os.getenv("DB_PATH", "/data/app.db")
+BACKUP_DIR = os.getenv("BACKUP_DIR", "/backup")
 
 app = Flask(__name__)
 
-# ---------- DB helpers ----------
+
 def get_conn():
-    conn = sqlite3.connect(DB_PATH)
-    return conn
+    return sqlite3.connect(DB_PATH)
+
 
 def init_db():
     os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
@@ -25,7 +26,40 @@ def init_db():
     conn.commit()
     conn.close()
 
-# ---------- Routes ----------
+
+def get_event_count():
+    init_db()
+    conn = get_conn()
+    cur = conn.execute("SELECT COUNT(*) FROM events")
+    n = cur.fetchone()[0]
+    conn.close()
+    return n
+
+
+def get_latest_backup_info():
+    if not os.path.exists(BACKUP_DIR):
+        return None, None
+
+    if not os.path.isdir(BACKUP_DIR):
+        return None, None
+
+    backup_files = [
+        os.path.join(BACKUP_DIR, f)
+        for f in os.listdir(BACKUP_DIR)
+        if f.endswith(".db")
+    ]
+
+    if not backup_files:
+        return None, None
+
+    latest_file = max(backup_files, key=os.path.getmtime)
+    latest_mtime = os.path.getmtime(latest_file)
+
+    now = datetime.now(timezone.utc).timestamp()
+    age_seconds = int(now - latest_mtime)
+
+    return os.path.basename(latest_file), age_seconds
+
 
 @app.get("/")
 def hello():
@@ -38,10 +72,10 @@ def health():
     init_db()
     return jsonify(status="ok")
 
+
 @app.get("/add")
 def add():
     init_db()
-
     msg = request.args.get("message", "hello")
     ts = datetime.utcnow().isoformat() + "Z"
 
@@ -59,36 +93,39 @@ def add():
         message=msg
     )
 
+
 @app.get("/consultation")
 def consultation():
     init_db()
-
     conn = get_conn()
     cur = conn.execute(
         "SELECT id, ts, message FROM events ORDER BY id DESC LIMIT 50"
     )
-
     rows = [
         {"id": r[0], "timestamp": r[1], "message": r[2]}
         for r in cur.fetchall()
     ]
-
     conn.close()
-
     return jsonify(rows)
+
 
 @app.get("/count")
 def count():
-    init_db()
+    return jsonify(count=get_event_count())
 
-    conn = get_conn()
-    cur = conn.execute("SELECT COUNT(*) FROM events")
-    n = cur.fetchone()[0]
-    conn.close()
 
-    return jsonify(count=n)
+@app.get("/status")
+def status():
+    count_value = get_event_count()
+    last_backup_file, backup_age_seconds = get_latest_backup_info()
 
-# ---------- Main ----------
+    return jsonify(
+        count=count_value,
+        last_backup_file=last_backup_file,
+        backup_age_seconds=backup_age_seconds
+    )
+
+
 if __name__ == "__main__":
     init_db()
     app.run(host="0.0.0.0", port=8080)

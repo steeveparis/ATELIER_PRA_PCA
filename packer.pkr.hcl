@@ -14,7 +14,7 @@ variable "image_name" {
 
 variable "image_tag" {
   type    = string
-  default = "1.0"
+  default = "1.1"
 }
 
 source "docker" "flask" {
